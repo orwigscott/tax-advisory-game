@@ -446,6 +446,16 @@ h1.scenario-title {
   padding: 14px 16px;
   margin: 14px 0 0;
 }
+.call-caption .w { transition: opacity 0.12s ease, color 0.12s ease; }
+/* While the client is speaking, dim words not yet reached and light up the
+   word being spoken — kept in sync with the voice. */
+.call-caption.syncing .w { opacity: 0.4; }
+.call-caption.syncing .w.said { opacity: 1; }
+.call-caption.syncing .w.now { opacity: 1; color: var(--brand); font-style: normal; }
+
+/* Intro screen */
+.intro-lead { font-size: 17px; color: var(--ink); margin: 6px 0 4px; }
+.intro-tip { color: var(--ink-soft); font-size: 15px; margin: 0 0 6px; }
 
 /* Controls */
 .call-controls { display: flex; gap: 10px; margin-top: 14px; }

@@ -57,7 +57,7 @@ async function start() {
     if (!state.pack.scenarios || !state.pack.scenarios.length) {
       throw new Error("Content pack has no scenarios.");
     }
-    renderScenario();
+    renderIntro();
   } catch (err) {
     renderError(err.message);
   }
@@ -94,6 +94,34 @@ function topbar() {
     }),
   ]);
   return [bar, track];
+}
+
+// ---------- intro / start screen ----------
+// A start screen exists for a practical reason: browsers block audio until the
+// user interacts with the page. The click to begin satisfies that, so the very
+// first client can speak right away.
+function renderIntro() {
+  clear();
+  const total = state.pack.scenarios.length;
+  const begin = el("button", { class: "btn btn-primary", text: "Start the first call →" });
+  begin.addEventListener("click", () => {
+    state.index = 0;
+    state.totalPoints = 0;
+    state.results = [];
+    renderScenario();
+  });
+
+  app.appendChild(
+    el("div", { class: "card summary intro" }, [
+      el("h1", { text: state.pack.title }),
+      el("p", { class: "intro-lead", text:
+        `You'll advise ${total} clients. Each one tells you their situation — listen, then choose the entity you'd recommend. After every choice you'll see exactly why it scores the way it does.` }),
+      canSpeak
+        ? el("p", { class: "intro-tip", text: "🔊 Turn your sound on — your clients will speak to you." })
+        : null,
+      el("div", { class: "actions", style: "justify-content:center;margin-top:8px;" }, [begin]),
+    ])
+  );
 }
 
 // ---------- a scenario ----------
@@ -164,8 +192,22 @@ function buildCallPanel(scenario) {
     ]),
   ]);
 
-  // Spoken words as captions (also the accessible transcript).
-  const caption = el("p", { class: "call-caption", text: `“${spoken}”` });
+  // Spoken words as captions (also the accessible transcript). Each word is
+  // its own span with character offsets so it can light up as it's spoken,
+  // kept in sync with the speech via the utterance's word-boundary events.
+  const caption = el("p", { class: "call-caption" });
+  caption.appendChild(document.createTextNode("“"));
+  const tokens = spoken.match(/\S+\s*/g) || [spoken];
+  let offset = 0;
+  tokens.forEach((tok) => {
+    const word = tok.trimEnd();
+    const span = el("span", { class: "w", text: tok });
+    span.dataset.start = String(offset);
+    span.dataset.end = String(offset + word.length);
+    caption.appendChild(span);
+    offset += tok.length;
+  });
+  caption.appendChild(document.createTextNode("”"));
 
   // Controls: play / replay narration and a mute toggle.
   const controls = el("div", { class: "call-controls" });
@@ -221,12 +263,44 @@ function speakClient(scenario, playBtn) {
   if (voice) u.voice = voice;
 
   const panel = app.querySelector(".call-video");
+  const caption = app.querySelector(".call-caption");
+  const wordSpans = caption ? [...caption.querySelectorAll(".w")] : [];
+  wordSpans.forEach((s) => s.classList.remove("said", "now"));
+  let boundaryFired = false;
+
   u.onstart = () => {
     if (panel) panel.classList.add("speaking");
+    if (caption) caption.classList.add("syncing");
     setPlayState(true);
+    // If the browser/voice doesn't emit word boundaries, drop the dimming
+    // after a moment so the caption stays fully readable.
+    setTimeout(() => {
+      if (!boundaryFired && caption) caption.classList.remove("syncing");
+    }, 900);
   };
+
+  // Light up words in time with the voice.
+  u.onboundary = (e) => {
+    if (e.name && e.name !== "word") return;
+    boundaryFired = true;
+    const ci = e.charIndex || 0;
+    let curr = -1;
+    for (let i = 0; i < wordSpans.length; i++) {
+      if (Number(wordSpans[i].dataset.start) <= ci) curr = i;
+      else break;
+    }
+    wordSpans.forEach((s, i) => {
+      s.classList.toggle("said", i < curr);
+      s.classList.toggle("now", i === curr);
+    });
+  };
+
   u.onend = u.onerror = () => {
     if (panel) panel.classList.remove("speaking");
+    if (caption) {
+      caption.classList.remove("syncing");
+      wordSpans.forEach((s) => s.classList.remove("now"));
+    }
     setPlayState(false);
     currentUtterance = null;
   };
