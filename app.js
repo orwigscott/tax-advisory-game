@@ -22,6 +22,7 @@ const state = {
   totalPoints: 0, // running score, summed from author-set points
   results: [], // { title, verdict, points } per answered scenario
   muted: false, // narration mute toggle, persists across scenarios
+  timings: null, // optional pre-generated audio + word timings, keyed by scenario id
 };
 
 const canSpeak = "speechSynthesis" in window;
@@ -56,6 +57,14 @@ async function start() {
     state.pack = await res.json();
     if (!state.pack.scenarios || !state.pack.scenarios.length) {
       throw new Error("Content pack has no scenarios.");
+    }
+    // Optional pre-generated voiceover + word timings. If absent, the engine
+    // falls back to the browser's built-in speech synthesis.
+    try {
+      const tRes = await fetch("content/audio/timings.json", { cache: "no-cache" });
+      if (tRes.ok) state.timings = await tRes.json();
+    } catch (e) {
+      /* no audio pack available — TTS fallback will be used */
     }
     renderIntro();
   } catch (err) {
@@ -162,9 +171,10 @@ function renderScenario() {
   card.appendChild(options);
   app.appendChild(card);
 
-  // Try to greet the learner with the client's voice. Browsers may block the
-  // very first auto-play before any user gesture; the Play button always works.
-  if (scenario.client && !state.muted) speakClient(scenario);
+  // Greet the learner with the client's voice. Browsers may block the very
+  // first auto-play before any user gesture; the Start screen handles that,
+  // and the Play button always works.
+  if (scenario.client) playClient(scenario);
 }
 
 // ---------- the "video call" panel ----------
@@ -218,8 +228,12 @@ function buildCallPanel(scenario) {
       html: speakerIcon() + "<span>Hear the client</span>",
     });
     playBtn.addEventListener("click", () => {
-      if (window.speechSynthesis.speaking) stopSpeaking();
-      else speakClient(scenario, playBtn);
+      if (isNarrating()) {
+        stopSpeaking();
+        setPlayState(false);
+      } else {
+        playClient(scenario);
+      }
     });
 
     const muteBtn = el("button", {
@@ -244,63 +258,119 @@ function buildCallPanel(scenario) {
   return el("div", { class: "call" }, [video, caption, controls]);
 }
 
-// ---------- speech ----------
+// ---------- narration (pre-generated audio, or browser TTS fallback) ----------
 let currentUtterance = null;
+let currentAudio = null;
+let rafId = null;
 
-function speakClient(scenario, playBtn) {
-  if (!canSpeak || state.muted) return;
+// Entry point: play the client's voice. Prefers pre-generated audio with exact
+// word timings; falls back to the browser's speech synthesis if none exists.
+function playClient(scenario) {
+  if (state.muted) return;
+  const info = state.timings && state.timings[scenario.id];
+  if (info) playAudio(scenario, info);
+  else speakTTS(scenario);
+}
+
+function narrationDom() {
+  const panel = app.querySelector(".call-video");
+  const caption = app.querySelector(".call-caption");
+  const spans = caption ? [...caption.querySelectorAll(".w")] : [];
+  return { panel, caption, spans };
+}
+
+function highlightUpTo(spans, curr) {
+  spans.forEach((s, i) => {
+    s.classList.toggle("said", i < curr);
+    s.classList.toggle("now", i === curr);
+  });
+}
+
+// --- pre-generated audio path: exact sync from word start times ---
+function playAudio(scenario, info) {
+  stopSpeaking();
+  const { panel, caption, spans } = narrationDom();
+  spans.forEach((s) => s.classList.remove("said", "now"));
+  const starts = info.words || [];
+
+  const audio = new Audio("content/audio/" + info.file);
+  currentAudio = audio;
+
+  const loop = () => {
+    if (!currentAudio) return;
+    const t = currentAudio.currentTime;
+    let curr = -1;
+    for (let i = 0; i < starts.length; i++) {
+      if (starts[i] <= t) curr = i;
+      else break;
+    }
+    highlightUpTo(spans, curr);
+    if (!currentAudio.paused && !currentAudio.ended) rafId = requestAnimationFrame(loop);
+  };
+
+  audio.onplay = () => {
+    if (panel) panel.classList.add("speaking");
+    if (caption) caption.classList.add("syncing");
+    setPlayState(true);
+    rafId = requestAnimationFrame(loop);
+  };
+  audio.onended = () => {
+    clearNarrationVisual();
+    setPlayState(false);
+    currentAudio = null;
+  };
+  audio.onerror = () => {
+    // Audio file unavailable — fall back to the browser voice.
+    currentAudio = null;
+    speakTTS(scenario);
+  };
+
+  audio.play().catch(() => {
+    /* autoplay blocked before a gesture; the Play button still works */
+  });
+}
+
+// --- browser speech-synthesis fallback path ---
+function speakTTS(scenario) {
+  if (!canSpeak) return;
   const c = scenario.client;
   const text = c.quote || scenario.client_brief;
-
   stopSpeaking();
 
   const u = new SpeechSynthesisUtterance(text);
-  // Give each client a slightly different voice feel for variety.
   const seed = hashString(c.name);
   u.rate = 0.96;
-  u.pitch = 0.92 + (seed % 30) / 100; // 0.92 – 1.21
+  u.pitch = 0.92 + (seed % 30) / 100; // a little per-client variety
   const voice = pickVoice();
   if (voice) u.voice = voice;
 
-  const panel = app.querySelector(".call-video");
-  const caption = app.querySelector(".call-caption");
-  const wordSpans = caption ? [...caption.querySelectorAll(".w")] : [];
-  wordSpans.forEach((s) => s.classList.remove("said", "now"));
+  const { panel, caption, spans } = narrationDom();
+  spans.forEach((s) => s.classList.remove("said", "now"));
   let boundaryFired = false;
 
   u.onstart = () => {
     if (panel) panel.classList.add("speaking");
     if (caption) caption.classList.add("syncing");
     setPlayState(true);
-    // If the browser/voice doesn't emit word boundaries, drop the dimming
-    // after a moment so the caption stays fully readable.
+    // If the voice doesn't emit word boundaries, drop the dimming so the
+    // caption stays fully readable.
     setTimeout(() => {
       if (!boundaryFired && caption) caption.classList.remove("syncing");
     }, 900);
   };
-
-  // Light up words in time with the voice.
   u.onboundary = (e) => {
     if (e.name && e.name !== "word") return;
     boundaryFired = true;
     const ci = e.charIndex || 0;
     let curr = -1;
-    for (let i = 0; i < wordSpans.length; i++) {
-      if (Number(wordSpans[i].dataset.start) <= ci) curr = i;
+    for (let i = 0; i < spans.length; i++) {
+      if (Number(spans[i].dataset.start) <= ci) curr = i;
       else break;
     }
-    wordSpans.forEach((s, i) => {
-      s.classList.toggle("said", i < curr);
-      s.classList.toggle("now", i === curr);
-    });
+    highlightUpTo(spans, curr);
   };
-
   u.onend = u.onerror = () => {
-    if (panel) panel.classList.remove("speaking");
-    if (caption) {
-      caption.classList.remove("syncing");
-      wordSpans.forEach((s) => s.classList.remove("now"));
-    }
+    clearNarrationVisual();
     setPlayState(false);
     currentUtterance = null;
   };
@@ -309,15 +379,39 @@ function speakClient(scenario, playBtn) {
   window.speechSynthesis.speak(u);
 }
 
+function isNarrating() {
+  return (
+    (canSpeak && window.speechSynthesis.speaking) ||
+    (currentAudio && !currentAudio.paused)
+  );
+}
+
 function setPlayState(speaking) {
   const btn = app.querySelector('.call-btn[data-role="play"] span');
   if (btn) btn.textContent = speaking ? "Stop" : "Replay";
 }
 
-function stopSpeaking() {
-  if (canSpeak) window.speechSynthesis.cancel();
+function clearNarrationVisual() {
   const panel = app.querySelector(".call-video.speaking");
   if (panel) panel.classList.remove("speaking");
+  const caption = app.querySelector(".call-caption");
+  if (caption) {
+    caption.classList.remove("syncing");
+    caption.querySelectorAll(".w.now").forEach((s) => s.classList.remove("now"));
+  }
+  if (rafId) {
+    cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+}
+
+function stopSpeaking() {
+  if (canSpeak) window.speechSynthesis.cancel();
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+  clearNarrationVisual();
 }
 
 // Prefer a natural-sounding local English voice when one is available.

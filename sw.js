@@ -1,7 +1,7 @@
 /* Service worker: keep the app working offline, but always prefer fresh files
  * when online so updates reach players without a manual cache-busting step.
  * (Bump CACHE if you ever need to force-clear everyone's stored copy.) */
-const CACHE = "tax-advisory-v2";
+const CACHE = "tax-advisory-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -10,6 +10,11 @@ const ASSETS = [
   "./manifest.webmanifest",
   "./icon.svg",
   "./content/entity-selection.json",
+  "./content/audio/timings.json",
+  "./content/audio/entity-001.mp3",
+  "./content/audio/entity-002.mp3",
+  "./content/audio/entity-003.mp3",
+  "./content/audio/entity-004.mp3",
 ];
 
 self.addEventListener("install", (event) => {
