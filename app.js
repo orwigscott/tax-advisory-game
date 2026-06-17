@@ -182,25 +182,42 @@ function buildCallPanel(scenario) {
   const c = scenario.client;
   const spoken = c.quote || scenario.client_brief;
 
-  // Animated audio bars shown while the client is "speaking".
-  const wave = el("div", { class: "wave", "aria-hidden": "true" });
-  for (let i = 0; i < 5; i++) wave.appendChild(el("span"));
+  const info = state.timings && state.timings[scenario.id];
+  const videoFile = info && info.video;
 
-  const video = el("div", { class: "call-video" }, [
-    el("div", { class: "call-rings", "aria-hidden": "true" }, [
-      el("span"), el("span"),
-    ]),
-    el("div", { class: "call-avatar", html: avatarSVG(c.name) }),
-    wave,
-    el("div", { class: "call-live" }, [
-      el("span", { class: "call-dot" }),
-      el("span", { text: "LIVE" }),
-    ]),
-    el("div", { class: "call-nametag" }, [
-      el("span", { class: "call-name", text: c.name }),
-      c.role ? el("span", { class: "call-role", text: c.role }) : null,
-    ]),
+  const live = el("div", { class: "call-live" }, [
+    el("span", { class: "call-dot" }),
+    el("span", { text: "LIVE" }),
   ]);
+  const nametag = el("div", { class: "call-nametag" }, [
+    el("span", { class: "call-name", text: c.name }),
+    c.role ? el("span", { class: "call-role", text: c.role }) : null,
+  ]);
+
+  let tileKids;
+  if (videoFile) {
+    // Lip-synced talking-head video fills the call tile.
+    const vid = el("video", {
+      class: "call-vid",
+      src: "content/video/" + videoFile,
+      playsinline: "",
+      preload: "auto",
+    });
+    vid.muted = state.muted;
+    tileKids = [vid, live, nametag];
+  } else {
+    // Generated avatar with speaking animation + audio waveform.
+    const wave = el("div", { class: "wave", "aria-hidden": "true" });
+    for (let i = 0; i < 5; i++) wave.appendChild(el("span"));
+    tileKids = [
+      el("div", { class: "call-rings", "aria-hidden": "true" }, [el("span"), el("span")]),
+      el("div", { class: "call-avatar", html: avatarSVG(c.name) }),
+      wave,
+      live,
+      nametag,
+    ];
+  }
+  const video = el("div", { class: "call-video" + (videoFile ? " has-vid" : "") }, tileKids);
 
   // Spoken words as captions (also the accessible transcript). Each word is
   // its own span with character offsets so it can light up as it's spoken,
@@ -244,7 +261,8 @@ function buildCallPanel(scenario) {
     muteBtn.addEventListener("click", () => {
       state.muted = !state.muted;
       muteBtn.textContent = state.muted ? "Unmute" : "Mute";
-      if (state.muted) stopSpeaking();
+      if (currentVideo) currentVideo.muted = state.muted; // mute live, keep video playing
+      else if (state.muted) stopSpeaking();
     });
 
     controls.appendChild(playBtn);
@@ -258,18 +276,68 @@ function buildCallPanel(scenario) {
   return el("div", { class: "call" }, [video, caption, controls]);
 }
 
-// ---------- narration (pre-generated audio, or browser TTS fallback) ----------
+// ---------- narration (video, pre-generated audio, or browser TTS) ----------
 let currentUtterance = null;
 let currentAudio = null;
+let currentVideo = null;
 let rafId = null;
 
-// Entry point: play the client's voice. Prefers pre-generated audio with exact
-// word timings; falls back to the browser's speech synthesis if none exists.
+// Entry point: play the client's voice/video. Prefers a lip-synced video, then
+// pre-generated audio with exact word timings, then browser speech synthesis.
 function playClient(scenario) {
-  if (state.muted) return;
   const info = state.timings && state.timings[scenario.id];
+  if (info && info.video) {
+    playVideo(scenario, info);
+    return;
+  }
+  if (state.muted) return;
   if (info) playAudio(scenario, info);
   else speakTTS(scenario);
+}
+
+// --- lip-synced video path: captions driven by the video's playback time ---
+function playVideo(scenario, info) {
+  stopSpeaking();
+  const { panel, caption, spans } = narrationDom();
+  spans.forEach((s) => s.classList.remove("said", "now"));
+  const v = app.querySelector(".call-vid");
+  if (!v) {
+    // No video element present — fall back to audio/TTS.
+    if (!state.muted) info.file ? playAudio(scenario, info) : speakTTS(scenario);
+    return;
+  }
+  currentVideo = v;
+  v.muted = state.muted;
+  const starts = info.words || [];
+
+  const loop = () => {
+    if (!currentVideo) return;
+    const t = currentVideo.currentTime;
+    let curr = -1;
+    for (let i = 0; i < starts.length; i++) {
+      if (starts[i] <= t) curr = i;
+      else break;
+    }
+    highlightUpTo(spans, curr);
+    if (!currentVideo.paused && !currentVideo.ended) rafId = requestAnimationFrame(loop);
+  };
+
+  v.onplay = () => {
+    if (panel) panel.classList.add("speaking");
+    if (caption) caption.classList.add("syncing");
+    setPlayState(true);
+    rafId = requestAnimationFrame(loop);
+  };
+  v.onended = () => {
+    clearNarrationVisual();
+    setPlayState(false);
+    currentVideo = null;
+  };
+
+  try { v.currentTime = 0; } catch (e) {}
+  v.play().catch(() => {
+    /* autoplay blocked before a gesture; the Play button still works */
+  });
 }
 
 function narrationDom() {
@@ -382,7 +450,8 @@ function speakTTS(scenario) {
 function isNarrating() {
   return (
     (canSpeak && window.speechSynthesis.speaking) ||
-    (currentAudio && !currentAudio.paused)
+    (currentAudio && !currentAudio.paused) ||
+    (currentVideo && !currentVideo.paused)
   );
 }
 
@@ -410,6 +479,10 @@ function stopSpeaking() {
   if (currentAudio) {
     currentAudio.pause();
     currentAudio = null;
+  }
+  if (currentVideo) {
+    currentVideo.pause();
+    currentVideo = null;
   }
   clearNarrationVisual();
 }

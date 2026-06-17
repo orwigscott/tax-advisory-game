@@ -330,6 +330,42 @@ h1.scenario-title {
   justify-content: center;
 }
 
+/* Lip-synced video fills the call tile */
+.call-vid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  background: #0c1c2e;
+}
+/* Top-left scrim: knocks back any baked-in overlay behind our LIVE badge. */
+.call-video.has-vid::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 170px;
+  height: 64px;
+  background: linear-gradient(135deg, rgba(8, 18, 30, 0.92) 0%, rgba(8, 18, 30, 0.5) 45%, rgba(8, 18, 30, 0) 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Bottom scrim: hides any baked-in lower-third text and seats our name tag. */
+.call-video.has-vid::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 96px;
+  background: linear-gradient(to top, rgba(8, 18, 30, 1) 0%, rgba(8, 18, 30, 0.92) 38%, rgba(8, 18, 30, 0) 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
 /* Avatar */
 .call-avatar {
   position: relative;
