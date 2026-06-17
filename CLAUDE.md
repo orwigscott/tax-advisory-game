@@ -31,6 +31,7 @@ A pack is `{ pack_id, title, topic, schema_version, scenarios[] }`. Each scenari
 | `title`        | Short display title |
 | `level`        | `foundational` \| `intermediate` \| `advanced` (intern → partner) |
 | `client_brief` | The situation the learner reads |
+| `client`       | *Optional, presentational only.* `{ name, role, quote }` — renders a "video call" panel with a generated avatar and reads `quote` (first-person) aloud via the browser's speech synthesis. Never affects scoring; if absent, the engine shows `client_brief` as plain text. |
 | `options[]`    | `{ id, label }` — the entities to choose from (varies per scenario) |
 | `factors[]`    | `{ id, label, weight, favors, note }` — the considerations that justify scoring; `favors` is an option id or `"none"`. **This array also powers the future "spot the flaw" mode, so author it carefully.** |
 | `scoring`      | Map of option id → `{ verdict, points }` |

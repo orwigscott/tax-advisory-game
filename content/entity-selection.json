@@ -9,6 +9,11 @@
       "title": "The reinvesting founder",
       "level": "intermediate",
       "client_brief": "Maya is launching a SaaS company. She plans to raise venture capital within 18 months, reinvest all profits for the foreseeable future, and eventually sell. She has two co-founders and wants to grant equity to early employees.",
+      "client": {
+        "name": "Maya Chen",
+        "role": "Founder, SaaS startup",
+        "quote": "I'm starting a SaaS company with two co-founders. We expect to raise venture capital within about 18 months, and we want to reinvest all of our profits back into the business for the foreseeable future, then eventually sell. I'd also love to grant equity to our earliest employees. How should we set up the entity?"
+      },
       "options": [
         { "id": "ccorp",       "label": "C corporation" },
         { "id": "scorp",       "label": "S corporation" },
@@ -40,6 +45,11 @@
       "title": "Debt-financed losses",
       "level": "advanced",
       "client_brief": "Three investors are buying and renovating an apartment building, financed mostly with a bank mortgage. They expect large depreciation and operating losses in the early years and want to use those losses on their own returns. All three materially participate in real estate.",
+      "client": {
+        "name": "Daniel Reyes",
+        "role": "Real estate investor",
+        "quote": "Two partners and I are buying an apartment building and renovating it, financed mostly with a bank mortgage. We're expecting large depreciation and operating losses in the early years, and we'd really like to use those losses on our own personal returns. All three of us actively work in real estate. What's the right entity for us?"
+      },
       "options": [
         { "id": "partnership", "label": "Partnership / multi-member LLC" },
         { "id": "scorp",       "label": "S corporation" },
@@ -71,6 +81,11 @@
       "title": "Trimming self-employment tax",
       "level": "intermediate",
       "client_brief": "Devon runs a profitable marketing agency netting about $200K a year as a sole proprietor. The business isn't a specified service trade for QBI purposes and he has no plans to sell. He's tired of paying self-employment tax on every dollar.",
+      "client": {
+        "name": "Devon Park",
+        "role": "Marketing agency owner",
+        "quote": "My marketing agency nets around two hundred thousand dollars a year, and right now I'm just a sole proprietor. We're not a specified service business for the QBI rules, and I have no plans to sell. Honestly, I'm just tired of paying self-employment tax on every single dollar. Is there a better structure for me?"
+      },
       "options": [
         { "id": "scorp",     "label": "S corporation" },
         { "id": "soleprop",  "label": "Stay sole proprietor / SMLLC" },
@@ -102,6 +117,11 @@
       "title": "Don't over-engineer it",
       "level": "foundational",
       "client_brief": "Priya just left her job to consult on the side. She expects to net around $35K this first year and isn't sure it'll grow. A colleague told her to 'set up an S corp to save on taxes.' She wants the simplest setup that doesn't waste money.",
+      "client": {
+        "name": "Priya Anand",
+        "role": "Independent consultant",
+        "quote": "I just left my job to do some consulting on the side. I'll probably net around thirty-five thousand dollars this first year, but I honestly don't know if it'll grow. A friend told me I should set up an S corp to save on taxes. I really just want the simplest setup that doesn't waste money. What do you recommend?"
+      },
       "options": [
         { "id": "soleprop", "label": "Sole proprietor / single-member LLC" },
         { "id": "scorp",    "label": "S corporation" },

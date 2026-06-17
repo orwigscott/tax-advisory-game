@@ -1,5 +1,7 @@
-/* Minimal service worker: cache the app shell + content pack for offline play. */
-const CACHE = "tax-advisory-v1";
+/* Service worker: keep the app working offline, but always prefer fresh files
+ * when online so updates reach players without a manual cache-busting step.
+ * (Bump CACHE if you ever need to force-clear everyone's stored copy.) */
+const CACHE = "tax-advisory-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -24,17 +26,17 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Cache-first, falling back to network (then caching the result).
+// Network-first: try the live file, update the cache, and fall back to the
+// cached copy only when offline. This means edits show up on next reload.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((res) => {
+    fetch(event.request)
+      .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
         return res;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
