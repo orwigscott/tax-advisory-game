@@ -1,0 +1,130 @@
+{
+  "pack_id": "entity-selection",
+  "title": "Entity Selection: Advising the Client",
+  "topic": "Choosing among C corp, S corp, partnership, and sole proprietorship based on client facts",
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "id": "entity-001",
+      "title": "The reinvesting founder",
+      "level": "intermediate",
+      "client_brief": "Maya is launching a SaaS company. She plans to raise venture capital within 18 months, reinvest all profits for the foreseeable future, and eventually sell. She has two co-founders and wants to grant equity to early employees.",
+      "options": [
+        { "id": "ccorp",       "label": "C corporation" },
+        { "id": "scorp",       "label": "S corporation" },
+        { "id": "partnership", "label": "Partnership / multi-member LLC" }
+      ],
+      "factors": [
+        { "id": "vc_owners",    "label": "VC / entity investors",  "weight": 3, "favors": "ccorp",
+          "note": "S corps can't have entity or nonresident owners \u2014 a VC fund voids the election the day it invests." },
+        { "id": "qsbs_exit",    "label": "QSBS exit potential",    "weight": 3, "favors": "ccorp",
+          "note": "Reinvest-then-sell is the textbook \u00a71202 setup; a C corp can exclude a large share of gain on a qualifying sale." },
+        { "id": "reinvesting",  "label": "Reinvesting all profits","weight": 2, "favors": "ccorp",
+          "note": "Double taxation only bites on distributions \u2014 defer those and the second layer largely sleeps." },
+        { "id": "equity_grants","label": "Employee equity",        "weight": 1, "favors": "partnership",
+          "note": "Profits interests are flexible in a partnership; the single-class-of-stock rule constrains S corps." }
+      ],
+      "scoring": {
+        "ccorp":       { "verdict": "best",       "points": 100 },
+        "partnership": { "verdict": "defensible", "points": 50 },
+        "scorp":       { "verdict": "wrong",      "points": 0 }
+      },
+      "feedback": {
+        "ccorp": "Right call. The VC raise alone rules out an S corp, and reinvest-then-sell is the \u00a71202 pattern.",
+        "scorp": "The classic trap \u2014 the moment a VC fund invests, the election is void, and you've forfeited the QSBS exit.",
+        "partnership": "Not wrong, but you leave \u00a71202 on the table and VCs strongly prefer to fund C corps."
+      }
+    },
+    {
+      "id": "entity-002",
+      "title": "Debt-financed losses",
+      "level": "advanced",
+      "client_brief": "Three investors are buying and renovating an apartment building, financed mostly with a bank mortgage. They expect large depreciation and operating losses in the early years and want to use those losses on their own returns. All three materially participate in real estate.",
+      "options": [
+        { "id": "partnership", "label": "Partnership / multi-member LLC" },
+        { "id": "scorp",       "label": "S corporation" },
+        { "id": "ccorp",       "label": "C corporation" }
+      ],
+      "factors": [
+        { "id": "debt_basis",   "label": "Entity debt creates basis", "weight": 3, "favors": "partnership",
+          "note": "Partners add their share of qualified nonrecourse debt to outside basis \u2014 S corp shareholders only get basis for loans they personally make." },
+        { "id": "special_alloc","label": "Special allocations",       "weight": 2, "favors": "partnership",
+          "note": "\u00a7704(b) lets the partnership steer losses to the partners who can use them; S corps must allocate strictly by ownership." },
+        { "id": "loss_at_owner","label": "Losses usable by owners",   "weight": 2, "favors": "partnership",
+          "note": "Passthrough losses flow to the owners; a C corp would trap them at the entity." },
+        { "id": "pal_limit",    "label": "Passive loss / at-risk limits","weight": 1, "favors": "none",
+          "note": "\u00a7469 and \u00a7465 can still cap what owners deduct regardless of entity \u2014 a real caveat, not a tiebreaker." }
+      ],
+      "scoring": {
+        "partnership": { "verdict": "best",       "points": 100 },
+        "scorp":       { "verdict": "defensible", "points": 40 },
+        "ccorp":       { "verdict": "wrong",      "points": 0 }
+      },
+      "feedback": {
+        "partnership": "Yes \u2014 debt basis plus \u00a7704(b) allocations is exactly why losses-with-leverage favors a partnership.",
+        "scorp": "An S corp passes losses through, but shareholders can't count the mortgage in basis, so the deductions stall.",
+        "ccorp": "A C corp traps the losses at the entity level \u2014 the owners get nothing to use on their own returns."
+      }
+    },
+    {
+      "id": "entity-003",
+      "title": "Trimming self-employment tax",
+      "level": "intermediate",
+      "client_brief": "Devon runs a profitable marketing agency netting about $200K a year as a sole proprietor. The business isn't a specified service trade for QBI purposes and he has no plans to sell. He's tired of paying self-employment tax on every dollar.",
+      "options": [
+        { "id": "scorp",     "label": "S corporation" },
+        { "id": "soleprop",  "label": "Stay sole proprietor / SMLLC" },
+        { "id": "ccorp",     "label": "C corporation" }
+      ],
+      "factors": [
+        { "id": "comp_split",  "label": "Wage vs. distribution split", "weight": 3, "favors": "scorp",
+          "note": "An S corp pays reasonable W-2 wages (payroll tax) and takes the rest as distributions (no SE/payroll tax)." },
+        { "id": "profit_level","label": "Profit high enough to matter","weight": 2, "favors": "scorp",
+          "note": "At ~$200K the SE-tax savings comfortably clear the cost of payroll and a separate return." },
+        { "id": "reasonable_comp","label": "Reasonable-comp exposure", "weight": 1, "favors": "none",
+          "note": "Set wages too low and the IRS recharacterizes distributions as wages \u2014 the savings have a ceiling." },
+        { "id": "qbi_wage",    "label": "QBI wage interaction",        "weight": 1, "favors": "soleprop",
+          "note": "S corp wages reduce the QBI base; for a non-SSTB this is usually a minor offset to the SE-tax win." }
+      ],
+      "scoring": {
+        "scorp":    { "verdict": "best",       "points": 100 },
+        "soleprop": { "verdict": "defensible", "points": 40 },
+        "ccorp":    { "verdict": "wrong",      "points": 0 }
+      },
+      "feedback": {
+        "scorp": "Right \u2014 at this profit level the reasonable-comp split is the standard SE-tax play, watch the comp.",
+        "soleprop": "Simplest, but at $200K you're leaving real SE-tax savings on the table for no offsetting benefit.",
+        "ccorp": "A C corp adds double taxation and kills QBI to solve a problem the S corp solves more cleanly."
+      }
+    },
+    {
+      "id": "entity-004",
+      "title": "Don't over-engineer it",
+      "level": "foundational",
+      "client_brief": "Priya just left her job to consult on the side. She expects to net around $35K this first year and isn't sure it'll grow. A colleague told her to 'set up an S corp to save on taxes.' She wants the simplest setup that doesn't waste money.",
+      "options": [
+        { "id": "soleprop", "label": "Sole proprietor / single-member LLC" },
+        { "id": "scorp",    "label": "S corporation" },
+        { "id": "ccorp",    "label": "C corporation" }
+      ],
+      "factors": [
+        { "id": "low_profit",   "label": "Profit too low to justify cost", "weight": 3, "favors": "soleprop",
+          "note": "At ~$35K, SE-tax savings from an S corp are small and easily swallowed by payroll and 1120-S prep costs." },
+        { "id": "admin_burden", "label": "Administrative overhead",        "weight": 2, "favors": "soleprop",
+          "note": "An S corp means payroll filings, reasonable comp, and a separate return \u2014 real cost and complexity." },
+        { "id": "uncertainty",  "label": "Unproven, may not grow",         "weight": 1, "favors": "soleprop",
+          "note": "Electing too early commits her to overhead before the income justifies it; she can elect later." }
+      ],
+      "scoring": {
+        "soleprop": { "verdict": "best",  "points": 100 },
+        "scorp":    { "verdict": "wrong", "points": 0 },
+        "ccorp":    { "verdict": "wrong", "points": 0 }
+      },
+      "feedback": {
+        "soleprop": "Right \u2014 the fancy answer isn't always the correct one. At $35K, simple wins; she can revisit as profit grows.",
+        "scorp": "This is the 'always be an S corp' myth. The overhead outweighs the savings at this profit level.",
+        "ccorp": "Far too much structure for a small, unproven consulting business \u2014 double tax and complexity for no gain."
+      }
+    }
+  ]
+}
